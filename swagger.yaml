@@ -224,7 +224,7 @@ paths:
       tags: [Posts]
       responses:
         '200':
-          description: Publicaciones obtenidas correctamente con usuarios e imágenes populadas
+          description: Publicaciones obtenidas correctamente con usuarios e imágenes populadas, de la más nueva a la más vieja
           content:
             application/json:
               schema:
@@ -369,6 +369,8 @@ paths:
               properties:
                 url:
                   type: string
+                  format: uri
+                  description: Dirección http o https de la imagen
                   example: "https://ejemplo.com/imagen.jpg"
       responses:
         '201':
@@ -377,6 +379,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /posts/{id}/images/{imageId}:
     delete:
@@ -820,6 +824,14 @@ components:
           type: array
           items:
             type: string
+        createdAt:
+          type: string
+          format: date-time
+          description: Fecha de la publicación
+        updatedAt:
+          type: string
+          format: date-time
+          description: Fecha de la última modificación
 
     Comment:
       type: object
