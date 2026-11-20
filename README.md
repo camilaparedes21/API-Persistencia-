@@ -105,6 +105,8 @@ Los tests usan **mongodb-memory-server**, que levanta una base de MongoDB en mem
 |---------------------------------|----------------------------------------------------|
 | `tests/comments-tags.test.js`   | Comentarios, etiquetas y su relación con los posts |
 | `tests/post-detail.test.js`     | Detalle de un post con sus comentarios visibles    |
+| `tests/users.test.js`           | Usuarios: alta, contraseña hasheada, edición, seguir / dejar de seguir y borrado en cascada |
+| `tests/posts.test.js`           | Publicaciones e imágenes: validaciones, fecha, URL http/https, imágenes repetidas y borrados |
 
 ---
 
