@@ -139,8 +139,9 @@ Para usarlas: en Postman, **Import** → elegir el archivo. Como los ids los gen
 | GET    | `/users/:id`                 | Obtiene un usuario                               |
 | POST   | `/users`                     | Crea un usuario                                  |
 | PUT    | `/users/:id`                 | Actualiza un usuario                             |
-| DELETE | `/users/:id`                 | Elimina un usuario, sus posts y sus comentarios  |
+| DELETE | `/users/:id`                 | Elimina un usuario y todo lo relacionado (ver "Qué pasa al borrar") |
 | PUT    | `/users/:idSeguido/seguir`   | El usuario `idSeguidor` (en el body) sigue a `idSeguido` |
+| PUT    | `/users/:idSeguido/dejar-de-seguir` | El usuario `idSeguidor` (en el body) deja de seguir a `idSeguido` |
 
 ### Publicaciones e imágenes
 
@@ -186,7 +187,10 @@ Para usarlas: en Postman, **Import** → elegir el archivo. Como los ids los gen
 | 204    | Borrado exitoso sin cuerpo de respuesta                                  |
 | 400    | Datos inválidos (Joi) o `id` con formato que no es un ObjectId válido    |
 | 404    | El recurso (o uno relacionado, como el post o el tag) no existe, o la ruta no existe |
+| 409    | Valor único repetido (`nickName` o nombre de etiqueta) o seguir a alguien que ya se sigue |
 | 500    | Error inesperado del servidor                                            |
+
+Todos los errores tienen el mismo formato: `{ "error": "mensaje" }`. Los errores de validación agregan además un array `details` con el campo y el problema de cada dato inválido.
 
 ---
 
@@ -213,7 +217,7 @@ Un id con otro formato devuelve **400** en lugar de 404, para distinguir "id mal
 │   ├── models/       # Modelos de Mongoose (User, Post, PostImage, Comment, Tag)
 │   ├── routes/       # Routers de Express
 │   ├── schemas/      # Schemas de validación con Joi
-│   ├── utils/        # HttpError: se lanza y el errorHandler lo convierte en respuesta
+│   ├── utils/        # HttpError (lo convierte el errorHandler) y hash de contraseñas
 │   ├── app.js        # Configuración de Express, rutas y Swagger
 │   └── index.js      # Punto de entrada: conecta a MongoDB y levanta el servidor
 ├── tests/            # Pruebas de integración (Jest + Supertest)
@@ -312,7 +316,8 @@ En este modelo **todas las relaciones son referenciadas** por `_id`; no hay docu
 
 #### Seguidores (bonus) → auto-referencia en `User`
 
-- Cada usuario guarda `seguidos` y `seguidores` como arrays de ids de otros usuarios. Seguir a alguien hace `$addToSet` en los dos usuarios a la vez.
+- Cada usuario guarda `seguidos` y `seguidores` como arrays de ids de otros usuarios. Seguir a alguien hace `$addToSet` en los dos usuarios a la vez, y dejar de seguir hace `$pull` en los dos.
+- No se puede seguir a uno mismo, seguir dos veces al mismo usuario (409) ni dejar de seguir a alguien que no se sigue (400).
 - **Comparación con el modelo relacional:** en SQL se usaría una tabla intermedia `follows (followerId, followedId)` con clave primaria compuesta. En MongoDB los arrays reemplazan a esa tabla, y contar seguidores es simplemente el largo del array, sin `COUNT` ni `JOIN`. La desventaja es que la consistencia entre los dos arrays depende de la aplicación, y que un usuario con muchísimos seguidores haría crecer mucho su documento.
 
 ### Visibilidad de comentarios (regla de los X meses)
@@ -330,7 +335,12 @@ MongoDB no controla claves foráneas, así que lo garantiza la aplicación media
 
 - Los ids se validan como ObjectId (si no, **400**).
 - Se verifica que existan las entidades relacionadas: no se puede comentar un post o con un usuario inexistente, ni asociar un tag que no existe, ni quitar de un post un tag que no tiene (**404**).
-- El `nickName` es único mediante un índice único en el schema.
+- El `nickName` es único mediante un índice único en el schema (si se repite, **409**).
+
+### Contraseñas
+
+- Las contraseñas **nunca se guardan en texto plano**: antes de guardar un usuario, un hook `pre('save')` del modelo las reemplaza por un hash **scrypt** con un salt aleatorio propio (módulo `crypto` de Node, en `src/utils/password.js`).
+- El campo `password` tiene `select: false`, así que no se trae en las consultas, y además el modelo lo quita de cualquier respuesta JSON. Ningún endpoint devuelve la contraseña.
 
 ### Qué pasa al borrar
 
@@ -339,7 +349,7 @@ MongoDB no borra en cascada, así que cada borrado limpia lo relacionado:
 | Se borra    | Qué pasa con lo relacionado                                                                 |
 |-------------|---------------------------------------------------------------------------------------------|
 | **Post**    | Se borran sus imágenes y sus comentarios, y se quita su id de `Tag.posts` en todas las etiquetas. |
-| **Usuario** | Se borran sus publicaciones y los comentarios que escribió.                                  |
+| **Usuario** | Se borran sus publicaciones, junto con las imágenes y los comentarios (de cualquier usuario) de esas publicaciones, y esas publicaciones se quitan de `Tag.posts`. También se borran los comentarios que escribió en publicaciones de otros y se quita su id de los `seguidos` y `seguidores` de los demás usuarios. |
 | **Tag**     | Se quita su id de `Post.tags` en todas las publicaciones. Los posts no se borran.            |
 | **Comentario** | Se borra solo el comentario.                                                              |
 | **Imagen**  | Se borra el documento de la imagen y se quita del post.                                      |
