@@ -67,7 +67,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
         '409':
-          description: El nickname ya está registrado
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -127,6 +127,10 @@ paths:
           $ref: '#/components/responses/NotFound'
     delete:
       summary: Eliminar un usuario
+      description: >
+        Elimina al usuario junto con sus publicaciones (y las imágenes y comentarios de esas publicaciones),
+        los comentarios que hizo en publicaciones de otros, y su id en las etiquetas y en los
+        seguidos/seguidores de los demás usuarios.
       tags: [Users]
       parameters:
         - name: id
@@ -170,6 +174,43 @@ paths:
       responses:
         '200':
           description: Usuario seguido correctamente
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /users/{idSeguido}/dejar-de-seguir:
+    put:
+      summary: Dejar de seguir a otro usuario
+      tags: [Users]
+      parameters:
+        - name: idSeguido
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "6735a1b2c3d4e5f60718293a"
+          description: ObjectId del usuario al que se deja de seguir
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - idSeguidor
+              properties:
+                idSeguidor:
+                  type: string
+                  example: "6afb4cbe5e648ff843d3c756"
+                  description: ObjectId del usuario que deja de seguir
+      responses:
+        '200':
+          description: Se dejó de seguir al usuario correctamente
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
