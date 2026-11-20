@@ -16,6 +16,9 @@ const postSchema = new mongoose.Schema({
         ref: 'PostImage'
       }
     ] // Arreglo de IDs que apuntan a la colección separada de imágenes
+}, {
+  // Fecha de la publicación: createdAt (cuándo se publicó) y updatedAt (última modificación)
+  timestamps: true
 })
 
 module.exports = mongoose.model('Post', postSchema);
