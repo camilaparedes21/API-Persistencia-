@@ -147,12 +147,12 @@ Para usarlas: en Postman, **Import** → elegir el archivo. Como los ids los gen
 
 | Método | Ruta                              | Descripción                                          |
 |--------|-----------------------------------|------------------------------------------------------|
-| GET    | `/posts`                          | Lista las publicaciones                              |
+| GET    | `/posts`                          | Lista las publicaciones, de la más nueva a la más vieja |
 | GET    | `/posts/:id`                      | Detalle del post con autor, imágenes, tags y comentarios visibles |
 | POST   | `/posts`                          | Crea una publicación (`description`, `userId`)       |
 | PUT    | `/posts/:id`                      | Modifica la descripción                              |
 | DELETE | `/posts/:id`                      | Elimina el post, sus imágenes y sus comentarios      |
-| POST   | `/posts/:id/images`               | Agrega una imagen al post (`url`)                    |
+| POST   | `/posts/:id/images`               | Agrega una imagen al post (`url`, tiene que ser http o https) |
 | DELETE | `/posts/:id/images/:imageId`      | Quita una imagen del post                            |
 
 ### Comentarios
@@ -187,7 +187,7 @@ Para usarlas: en Postman, **Import** → elegir el archivo. Como los ids los gen
 | 204    | Borrado exitoso sin cuerpo de respuesta                                  |
 | 400    | Datos inválidos (Joi) o `id` con formato que no es un ObjectId válido    |
 | 404    | El recurso (o uno relacionado, como el post o el tag) no existe, o la ruta no existe |
-| 409    | Valor único repetido (`nickName` o nombre de etiqueta) o seguir a alguien que ya se sigue |
+| 409    | Valor único repetido (`nickName`, nombre de etiqueta o URL de imagen) o seguir a alguien que ya se sigue |
 | 500    | Error inesperado del servidor                                            |
 
 Todos los errores tienen el mismo formato: `{ "error": "mensaje" }`. Los errores de validación agregan además un array `details` con el campo y el problema de cada dato inválido.
@@ -255,6 +255,8 @@ classDiagram
         String description
         ObjectId[] tags
         ObjectId[] imagen
+        Date createdAt
+        Date updatedAt
     }
 
     class PostImage {
@@ -291,6 +293,8 @@ classDiagram
 **Índice compuesto:** `comments { idPost: 1, date: -1 }`.
 
 En este modelo **todas las relaciones son referenciadas** por `_id`; no hay documentos embebidos.
+
+**Fecha de las publicaciones:** el schema de `Post` usa `timestamps: true`, así que cada publicación guarda `createdAt` (cuándo se publicó) y `updatedAt` (última modificación). El listado de publicaciones se ordena por `createdAt`, de la más nueva a la más vieja.
 
 ### Justificación: embebido vs. referenciado
 
@@ -333,6 +337,7 @@ La fecha límite se calcula restando meses de calendario (si el día no existe e
 
 MongoDB no controla claves foráneas, así que lo garantiza la aplicación mediante middlewares, antes de llegar al controlador:
 
+- Todos los datos de entrada (body, parámetros y query) se validan con schemas de **Joi** aplicados como middlewares, así los controladores sólo hacen la operación. La URL de una imagen tiene que ser una dirección `http` o `https` válida.
 - Los ids se validan como ObjectId (si no, **400**).
 - Se verifica que existan las entidades relacionadas: no se puede comentar un post o con un usuario inexistente, ni asociar un tag que no existe, ni quitar de un post un tag que no tiene (**404**).
 - El `nickName` es único mediante un índice único en el schema (si se repite, **409**).
