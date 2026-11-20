@@ -7,7 +7,6 @@ const path = require('path');
 
 const usersRouter = require('./routes/userRoutes');
 const postsRouter = require('./routes/post');
-const postImagesRouter = require('./routes/postImages');
 const commentsRouter = require('./routes/comments');
 const postCommentsRouter = require('./routes/postComments');
 const tagsRouter = require('./routes/tags');
@@ -29,7 +28,6 @@ app.use('/posts/:postId/tags', postTagsRouter);
 // Rutas generales
 app.use('/users', usersRouter);
 app.use('/posts', postsRouter);
-app.use('/posts', postImagesRouter);
 app.use('/comments', commentsRouter);
 app.use('/tags', tagsRouter);
 
