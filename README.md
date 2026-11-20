@@ -122,10 +122,14 @@ La especificación está en [`swagger.yaml`](./swagger.yaml).
 
 | Archivo                               | Contenido                                               |
 |---------------------------------------|---------------------------------------------------------|
-| `postman_collection.json`             | Colección general con todos los endpoints               |
+| `postman_collection.json`             | Colección completa: todos los endpoints, recorrido desde una base vacía y casos de error (400, 404 y 409) |
 | `docs/postman.comments-tags.json`     | Casos de comentarios y etiquetas, incluidos los de error |
 
-Para usarlas: en Postman, **Import** → elegir el archivo. Como los ids los genera MongoDB, primero hay que crear un usuario, un post o un tag y copiar el `_id` devuelto en los requests que lo necesiten.
+**Colección completa (`postman_collection.json`):** en Postman, **Import** → elegir el archivo, y después **Run collection** para ejecutarla entera, en orden. Crea sus propios datos (usuarios, publicación, imágenes, comentarios y etiquetas), guarda los ids que devuelve la API en variables de la colección y los usa en los pedidos siguientes, así que no hay que copiar ningún id a mano. Cada pedido tiene tests que verifican el código de respuesta y el contenido. Se puede ejecutar varias veces, porque cada corrida usa nombres únicos.
+
+El recorrido es: usuarios y seguidores → publicación e imágenes → comentarios (incluido uno viejo que no se muestra) → etiquetas → detalle completo del post → borrados en cascada (publicación y usuario).
+
+**Colección de comentarios y etiquetas (`docs/postman.comments-tags.json`):** antes de usarla hay que completar las variables `userId` y `postId` con el `_id` de un usuario y de un post existentes.
 
 ---
 
