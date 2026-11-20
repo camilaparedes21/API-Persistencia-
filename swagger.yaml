@@ -1,0 +1,859 @@
+openapi: 3.0.0
+info:
+  title: Anti-Social API - UNAHUR TP2
+  version: 1.0.0
+  description: API REST para la red social Anti-Social desarrollada con Node.js, Express y MongoDB (Mongoose).
+
+servers:
+  - url: http://localhost:3000
+    description: Servidor de desarrollo local
+
+tags:
+  - name: Users
+    description: Gestión de usuarios y relaciones de seguimiento
+  - name: Posts
+    description: Publicaciones y gestión de imágenes asociadas
+  - name: Comments
+    description: Comentarios en publicaciones con control de visibilidad por antigüedad
+  - name: Tags
+    description: Etiquetas y clasificación de publicaciones
+
+paths:
+  /users:
+    get:
+      summary: Obtener todos los usuarios
+      tags: [Users]
+      responses:
+        '200':
+          description: Lista de usuarios obtenida con éxito
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      summary: Crear un nuevo usuario
+      tags: [Users]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nickName, firstName, lastName, email, password]
+              properties:
+                nickName:
+                  type: string
+                  example: "gerardo99"
+                firstName:
+                  type: string
+                  example: "Gerardo"
+                lastName:
+                  type: string
+                  example: "Gonzalez"
+                email:
+                  type: string
+                  format: email
+                  example: "gerardo@unahur.edu.ar"
+                password:
+                  type: string
+                  example: "secreto123"
+      responses:
+        '201':
+          description: Usuario creado correctamente
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: El nickname ya está registrado
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /users/{id}:
+    get:
+      summary: Obtener un usuario por ID
+      tags: [Users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "6735a1b2c3d4e5f60718293a"
+      responses:
+        '200':
+          description: Usuario encontrado con éxito
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      summary: Actualizar un usuario existente
+      tags: [Users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                  example: "Gerardo Modificado"
+                lastName:
+                  type: string
+                  example: "Gonzalez"
+                email:
+                  type: string
+                  format: email
+                  example: "gerardo.modificado@unahur.edu.ar"
+                password:
+                  type: string
+                  example: "gerardo123"
+      responses:
+        '200':
+          description: Usuario actualizado correctamente
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Eliminar un usuario
+      tags: [Users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Usuario eliminado correctamente
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users/{idSeguido}/seguir:
+    put:
+      summary: Seguir a otro usuario
+      tags: [Users]
+      parameters:
+        - name: idSeguido
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "6735a1b2c3d4e5f60718293a"
+          description: ObjectId del usuario al que se desea seguir
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - idSeguidor
+              properties:
+                idSeguidor:
+                  type: string
+                  example: "6afb4cbe5e648ff843d3c756"
+                  description: ObjectId del usuario que realiza el seguimiento
+      responses:
+        '200':
+          description: Usuario seguido correctamente
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /posts:
+    get:
+      summary: Obtener todas las publicaciones
+      tags: [Posts]
+      responses:
+        '200':
+          description: Publicaciones obtenidas correctamente con usuarios e imágenes populadas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mensaje:
+                    type: string
+                  publicaciones:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Post'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      summary: Crear una nueva publicación
+      tags: [Posts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [description, userId]
+              properties:
+                description:
+                  type: string
+                  example: "Mi primera publicación en la red."
+                userId:
+                  type: string
+                  example: "6735a1b2c3d4e5f60718293a"
+      responses:
+        '201':
+          description: Publicación creada correctamente
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /posts/{id}:
+    get:
+      summary: Obtener una publicación por ID
+      description: |
+        Devuelve la publicación con su autor (sin password), sus imágenes, sus etiquetas
+        y SÓLO los comentarios con menos de COMMENT_MAX_AGE_MONTHS meses (en "comentarios").
+      tags: [Posts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "6735a1b2c3d4e5f60718293a"
+      responses:
+        '200':
+          description: Publicación encontrada, con sus comentarios visibles y etiquetas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mensaje:
+                    type: string
+                  publicacion:
+                    allOf:
+                      - $ref: '#/components/schemas/Post'
+                      - type: object
+                        properties:
+                          comentarios:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    put:
+      summary: Actualizar descripción de una publicación
+      tags: [Posts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [description]
+              properties:
+                description:
+                  type: string
+                  example: "Descripción actualizada."
+      responses:
+        '200':
+          description: Actualizado correctamente
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Eliminar una publicación con sus imágenes y comentarios
+      description: También la saca de las etiquetas que la tenían; las etiquetas no se borran.
+      tags: [Posts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Eliminado correctamente
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /posts/{id}/images:
+    post:
+      summary: Agregar una imagen a una publicación
+      tags: [Posts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  example: "https://ejemplo.com/imagen.jpg"
+      responses:
+        '201':
+          description: Imagen agregada correctamente
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /posts/{id}/images/{imageId}:
+    delete:
+      summary: Eliminar una imagen específica de una publicación
+      tags: [Posts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: imageId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Imagen eliminada correctamente
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /posts/{postId}/comments:
+    get:
+      summary: Listar los comentarios visibles de un post
+      description: Devuelve sólo los comentarios con menos de COMMENT_MAX_AGE_MONTHS meses, del más nuevo al más viejo.
+      tags: [Comments]
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200':
+          description: Lista de comentarios visibles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      summary: Crear un comentario en un post
+      tags: [Comments]
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content, userId]
+              properties:
+                content:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+                  example: "Excelente posteo!"
+                userId:
+                  type: string
+                  example: "6735a1b2c3d4e5f60718293a"
+                date:
+                  type: string
+                  format: date-time
+                  description: Opcional. Fecha del comentario; por defecto, ahora. No puede ser futura.
+      responses:
+        '201':
+          description: Comentario creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: El post o el usuario no existen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Post con id 000000000000000000000000 no encontrado"
+
+  /posts/{postId}/tags:
+    get:
+      summary: Listar las etiquetas de un post
+      tags: [Tags]
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200':
+          description: Etiquetas del post, ordenadas por nombre
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tag'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      summary: Asignar etiquetas a un post
+      description: |
+        Todo o nada: si alguna etiqueta no existe no se asigna ninguna.
+        Las que el post ya tenía no se duplican. Se actualizan Post.tags y Tag.posts.
+      tags: [Tags]
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tagIds]
+              properties:
+                tagIds:
+                  type: array
+                  minItems: 1
+                  uniqueItems: true
+                  items:
+                    type: string
+                  example: ["6735a1b2c3d4e5f60718293d", "6735a1b2c3d4e5f60718293e"]
+      responses:
+        '200':
+          description: Lista completa de etiquetas del post después de asignar
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tag'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: El post o alguna etiqueta no existen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Hay etiquetas que no existen"
+                  details:
+                    type: object
+                    properties:
+                      missingTagIds:
+                        type: array
+                        items:
+                          type: string
+                        example: ["000000000000000000000000"]
+
+  /posts/{postId}/tags/{tagId}:
+    delete:
+      summary: Quitar una etiqueta de un post
+      description: La etiqueta no se borra; sólo se quita del post (y el post de la etiqueta).
+      tags: [Tags]
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+        - name: tagId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "6735a1b2c3d4e5f60718293d"
+      responses:
+        '204':
+          description: Etiqueta quitada del post
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: El post o la etiqueta no existen, o el post no tiene esa etiqueta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /comments:
+    get:
+      summary: Listar todos los comentarios (incluye los no visibles)
+      description: Cada comentario trae su isVisible. Se puede filtrar por visibilidad, post o usuario.
+      tags: [Comments]
+      parameters:
+        - name: visible
+          in: query
+          schema:
+            type: boolean
+          description: true = sólo visibles, false = sólo los que superan la antigüedad
+        - name: postId
+          in: query
+          schema:
+            type: string
+        - name: userId
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de comentarios
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /comments/{id}:
+    get:
+      summary: Obtener un comentario por ID
+      tags: [Comments]
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Comentario encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      summary: Editar el texto de un comentario
+      tags: [Comments]
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+      responses:
+        '200':
+          description: Comentario actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Eliminar un comentario
+      tags: [Comments]
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Comentario eliminado
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /tags:
+    get:
+      summary: Obtener todas las etiquetas
+      tags: [Tags]
+      responses:
+        '200':
+          description: Lista de etiquetas ordenada por nombre
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tag'
+    post:
+      summary: Crear una etiqueta
+      description: El nombre se guarda en minúsculas. Sólo letras, números, "-" y "_".
+      tags: [Tags]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  maxLength: 50
+                  example: "programacion"
+      responses:
+        '201':
+          description: Etiqueta creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tag'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /tags/{id}:
+    get:
+      summary: Obtener una etiqueta con sus posts
+      tags: [Tags]
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Etiqueta encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tag'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      summary: Renombrar una etiqueta
+      tags: [Tags]
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  example: "desarrollo-web"
+      responses:
+        '200':
+          description: Etiqueta actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tag'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      summary: Eliminar una etiqueta
+      description: Se quita de todos los posts que la tenían; los posts no se borran.
+      tags: [Tags]
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Etiqueta eliminada
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      example: "6735a1b2c3d4e5f60718293c"
+    PostId:
+      name: postId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: "6735a1b2c3d4e5f60718293b"
+
+  schemas:
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "6735a1b2c3d4e5f60718293a"
+        nickName:
+          type: string
+          example: "gerardo99"
+        firstName:
+          type: string
+          example: "Gerardo"
+        lastName:
+          type: string
+          example: "Gonzalez"
+        email:
+          type: string
+          example: "gerardo@unahur.edu.ar"
+        seguidos:
+          type: array
+          items:
+            type: string
+        seguidores:
+          type: array
+          items:
+            type: string
+
+    Post:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "6735a1b2c3d4e5f60718293b"
+        idUser:
+          $ref: '#/components/schemas/User'
+        description:
+          type: string
+          example: "Hola mundo!"
+        tags:
+          type: array
+          items:
+            type: string
+        imagen:
+          type: array
+          items:
+            type: string
+
+    Comment:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "6735a1b2c3d4e5f60718293c"
+        idPost:
+          type: string
+        idUser:
+          type: string
+        content:
+          type: string
+          example: "Muy buen aporte."
+        date:
+          type: string
+          format: date-time
+        isVisible:
+          type: boolean
+          description: Propiedad virtual calculada por antigüedad
+          example: true
+
+    Tag:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "6735a1b2c3d4e5f60718293d"
+        name:
+          type: string
+          example: "programacion"
+        posts:
+          type: array
+          items:
+            type: string
+          description: Lista de IDs de publicaciones asociadas al tag
+
+  responses:
+    BadRequest:
+      description: Solicitud incorrecta (error de validación o ID inválido)
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "El identificador proporcionado no es válido."
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "La publicación no existe."
+    ServerError:
+      description: Error interno del servidor
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Error interno en el servidor."
+    Conflict:
+      description: Ya existe un registro con ese valor único (ej. nombre de etiqueta repetido)
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Ya existe un registro con name \"programacion\""

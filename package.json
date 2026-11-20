@@ -1,0 +1,37 @@
+{
+  "name": "anti-social",
+  "version": "1.0.0",
+  "description": "UnaHur anti-social net - Trabajo Práctico",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node ./src/index.js",
+    "dev": "nodemon ./src/index.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 30000
+  },
+  "author": "Gerardo Gonzalez Tulian",
+  "license": "MIT",
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "mongodb-memory-server": "^10.1.4",
+    "nodemon": "^3.1.10",
+    "supertest": "^7.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://gitea.unahur.edu.ar/Estrategia-de-persistencia-C2-2026/trabajo-practico-2-compilaporfavor.git"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "dependencies": {
+    "dotenv": "^18.0.9",
+    "express": "^5.3.0",
+    "joi": "^18.3.1",
+    "mongoose": "^9.11.4",
+    "swagger-ui-express": "^5.0.1",
+    "yamljs": "^0.3.0"
+  }
+}
