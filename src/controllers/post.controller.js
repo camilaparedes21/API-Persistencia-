@@ -4,14 +4,31 @@
  Si algo falla, Express 5 pasa el error al errorHandler.*/
 
 const { Post, PostImage, Comment, Tag } = require('../models');
-const { findVisibleComments } = require('../helpers/commentVisibility');
+const { findVisibleComments, visibleCommentsFilter } = require('../helpers/commentVisibility');
+const HttpError = require('../utils/httpError');
 
-// GET /posts -> todas las publicaciones, de la más nueva a la más vieja
+// GET /posts -> todas las publicaciones (o las de un usuario con ?userId=),
+// con autor, imágenes, etiquetas y cantidad de comentarios visibles
 async function getAll(req, res) {
-  const publicaciones = await Post.find()
+  const { userId } = req.query;
+  const filtro = userId ? { idUser: userId } : {};
+
+  const posts = await Post.find(filtro)
     .sort({ createdAt: -1 })
-    .populate('idUser', '-password')
-    .populate('imagen');
+    .populate('idUser', 'nickName')
+    .populate('imagen')
+    .populate('tags', 'name');
+
+  // Por cada post cuenta sus comentarios visibles (todas las consultas en paralelo)
+  const publicaciones = await Promise.all(
+    posts.map(async (post) => {
+      const cantidadComentarios = await Comment.countDocuments({
+        idPost: post._id,
+        ...visibleCommentsFilter(),
+      });
+      return { ...post.toJSON(), cantidadComentarios };
+    })
+  );
 
   res.status(200).json({
     mensaje: 'Publicaciones obtenidas correctamente.',
@@ -37,13 +54,25 @@ async function getById(req, res) {
   });
 }
 
-// POST /posts
+// POST /posts -> crea la publicación y la asocia a sus etiquetas (en los dos lados)
 async function create(req, res) {
   const { user } = req.entities;
+  const { description, tags } = req.body;
+
+  // Verifica que existan todas las etiquetas (todo o nada)
+  const tagsEncontradas = await Tag.find({ _id: { $in: tags } });
+  if (tagsEncontradas.length !== tags.length) {
+    throw new HttpError(404, 'Hay etiquetas que no existen');
+  }
+
   const publicacion = await Post.create({
-    description: req.body.description,
+    description,
     idUser: user._id,
+    tags,
   });
+
+  // La relación se guarda en los dos lados: también en Tag.posts
+  await Tag.updateMany({ _id: { $in: tags } }, { $addToSet: { posts: publicacion._id } });
 
   res.status(201).json({
     mensaje: 'Publicación creada correctamente.',

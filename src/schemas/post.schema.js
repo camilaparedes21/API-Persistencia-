@@ -20,10 +20,14 @@ const url = Joi.string().trim().uri({ scheme: ['http', 'https'] }).max(2048).mes
   'any.required': 'url es obligatoria',
 });
 
-// POST /posts  { "description": "...", "userId": "..." }
+// POST /posts  { "description": "...", "userId": "...", "tags": ["id1", "id2"] }
 const createPostSchema = Joi.object({
   description: description.required(),
   userId: objectId.required(),
+  tags: Joi.array().items(objectId).unique().default([]).messages({
+    'array.base': 'tags debe ser una lista de ids',
+    'array.unique': 'tags no puede tener ids repetidos',
+  }),
 });
 
 // PUT /posts/:id  { "description": "..." }

@@ -14,6 +14,8 @@ router.post('/', validarUser, userController.crearUsuario)
 router.put('/:id', buscarUserPorId, validarUserUpdate, userController.actualizarUsuario)
 router.delete('/:id', buscarUserPorId, userController.eliminarUsuario)
 
+router.post('/login', userController.login)
+
 //Seguidores
 router.put('/:idSeguido/seguir', validarSeguirUser({ seguir: true }), userController.seguirUsuario)
 router.put('/:idSeguido/dejar-de-seguir', validarSeguirUser({ seguir: false }), userController.dejarDeSeguirUsuario)

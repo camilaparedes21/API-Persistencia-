@@ -8,6 +8,8 @@ const Post = require('../models/post')
 const Comment = require('../models/comment')
 const PostImage = require('../models/post_images')
 const Tag = require('../models/tag')
+const { verifyPassword } = require('../utils/password')
+
 
 //Campos del usuario que se pueden mostrar (nunca la contraseña)
 const datosPublicos = (usuario) => ({
@@ -54,6 +56,25 @@ const crearUsuario = async (req, res) => {
     const usuario = new User(req.body)
     await usuario.save()
     res.status(201).json(datosPublicos(usuario))
+}
+
+// POST /users/login -> valida nickName y contraseña
+const login = async (req, res) => {
+    const { nickName, password } = req.body
+
+    if (!nickName || !password) {
+        return res.status(400).json({ error: 'nickName y contraseña son obligatorios' })
+    }
+
+    // La contraseña tiene select: false, así que hay que pedirla explícitamente
+    const usuario = await User.findOne({ nickName }).select('+password')
+
+    // Mismo mensaje en los dos casos, para no revelar qué usuarios existen
+    if (!usuario || !verifyPassword(password, usuario.password)) {
+        return res.status(401).json({ error: 'Usuario o contraseña incorrectos' })
+    }
+
+    res.status(200).json(datosPublicos(usuario))
 }
 
 const actualizarUsuario = async (req, res) => {
@@ -110,6 +131,7 @@ module.exports = {
     obtenerUsuarios,
     obtenerUsuario,
     crearUsuario,
+    login,
     actualizarUsuario,
     eliminarUsuario,
     seguirUsuario,

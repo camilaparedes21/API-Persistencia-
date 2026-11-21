@@ -4,6 +4,7 @@ const express = require('express');
 const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
 const path = require('path');
+const cors = require('cors');
 
 const usersRouter = require('./routes/userRoutes');
 const postsRouter = require('./routes/post');
@@ -15,6 +16,7 @@ const errorHandler = require('./middlewares/errorHandler');
 
 const app = express();
 
+app.use(cors({ origin: 'http://localhost:5173' }));
 app.use(express.json());
 
 // Carga el archivo swagger.yaml asegurando la ruta raíz
